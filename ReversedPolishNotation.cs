@@ -43,6 +43,7 @@ public static class RPN
 		return stack.value;
 	}
 
+	static Dictionary<float, Operation> constantList = new Dictionary<float, Operation>();
 	public static Operation[] StringRPNtoFormula(string formula, params Dictionary<string, Operation>[] dicts){ 
 		string[] formula_arr = formula.Split(' ');
 		Operation[] result = new Operation[formula_arr.Length];
@@ -52,6 +53,10 @@ public static class RPN
 		for(int i = 0; i<result.Length; i++){ 
 			
 			if(float.TryParse(formula_arr[i], out float f)){ 
+				if(!constantList.ContainsKey(f)){
+					constantList.Add(f, Operation.ConstValue(f));
+				}
+				result[i] = constantList[f];
 				result[i] = Operation.ConstValue(f);
 			}else for(int j =0; j<dicts.Length; j++){ 
 				if(dicts[j].ContainsKey(formula_arr[i])){ 
@@ -70,7 +75,11 @@ public static class RPN
 		{"/", new Operation(2, (float[] arg)=>{return arg[0] / arg[1];}) },
 		{"^", new Operation(2, (float[] arg)=>{return Mathf.Pow(arg[0], arg[1]);}) },
 		{"sqrt", new Operation(1, (float[] arg)=>{return Mathf.Sqrt(arg[0]);}) },
-		{"floor", new Operation(1, (float[] arg)=>{return Mathf.Floor(arg[0]);}) }
+		{"floor", new Operation(1, (float[] arg)=>{return Mathf.Floor(arg[0]);}) },
+		{"max", new Operation(2, (float[] arg)=>{return Mathf.Max(arg[0], arg[1]); }) },
+		{"min", new Operation(2, (float[] arg)=>{return Mathf.Min(arg[0], arg[1]); }) }
 	};
+
+
 
 }
