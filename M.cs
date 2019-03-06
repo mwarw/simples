@@ -3,6 +3,8 @@ using System.Collections;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
+
+//v: 1.3 odchudzona pod steamgineer
 public static class M {
 
 	/// <summary>
@@ -231,8 +233,8 @@ public static class M {
 	/// Klasa generyczna kolejek, może być używana zarówno jako fifo, filo jak i jako ich mieszanka
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	public class Que<T>{ 
-		class Element{ 
+	public class Queue<T> : IEnumerable<T>{ 
+		class Element { 
 			public Element previous;
 			public Element next;
 			public T value;
@@ -245,10 +247,29 @@ public static class M {
 		private Element first = null;
 		private Element last = null;
 
+		public IEnumerator<T> GetEnumerator(){ 
+			Element current = first;
+			while(current != null){ 
+				yield return current.value;
+				current = current.next;
+			}
+			
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()	{
+			return GetEnumerator();
+		}
+
+		/// <summary>
+		/// ilość elementów w kolejce
+		/// </summary>
+		public int Length{get{return Length;} }
+		int length = 0;
+
 		/// <summary>
 		/// czy lista zawiera jakieś elementy
 		/// </summary>
-		public bool notEmpty { get{ return (first != null); } }
+		public bool notEmpty { get{ return (length != 0); } }
 
 		
 		/// <summary>
@@ -256,25 +277,28 @@ public static class M {
 		/// </summary>
 		/// <param name="value">wartość</param>
 		public void PushBack(T value){ 	
-			if(last != null){
+			
+			if(notEmpty){
 				last.next = new Element(last, value, null);
 				last = last.next;
 			}else{ 
 				first = last = new Element(null, value, null);
 			}
+			length++;
 		}
 		
 		/// <summary>
 		/// Daje element na początek kolejki
 		/// </summary>
 		/// <param name="value">wartość</param>
-		public void PushForward(T value){ 
-			if(first != null){
+		public void PushForward(T value){ 			
+			if(notEmpty){
 				first.previous = new Element(null, value, first);
 				first = first.previous;
 			}else{ 
 				last = first = new Element(null, value, null);
 			}
+			length++;
 		}
 
 		/// <summary>
@@ -282,9 +306,10 @@ public static class M {
 		/// </summary>
 		/// <returns></returns>
 		public T PopBack(){ 
-			if(last == null)
+			if(!notEmpty)
 				throw new System.Exception("Popping empty que");
 
+			
 			T result = last.value;
 			if(last == first){
 				last = first = null;
@@ -292,6 +317,7 @@ public static class M {
 				last = last.previous;
 				last.next = null;
 			}
+			length--;
 			return result;
 		}
 
@@ -301,9 +327,9 @@ public static class M {
 		/// </summary>
 		/// <returns></returns>
 		public T PopForward(){ 
-			if(first == null)
+			if(!notEmpty)
 				throw new System.Exception("Popping empty que");
-
+			
 			T result = first.value;
 			if(last == first){ 
 				last = first = null;
@@ -311,6 +337,7 @@ public static class M {
 				first = first.next;
 				first.previous = null;
 			}
+			length--;
 			return result;
 		}
 
@@ -339,32 +366,29 @@ public static class M {
 		/// <summary>
 		/// zamienia kolejke na liste
 		/// </summary>
-		/// <returns></returns>
+		/// <returns>przekonwertowana list</returns>
 		public List<T> ToList(){ 
-			return new List<T>(ToArray());
+			List<T> result = new List<T>();
+			for(Element i = first; i != null; i= i.next){ 
+				result.Add(i.value);
+			}
+			return result;
 		}
 
 		/// <summary>
 		/// zamienia kolejke na tablice
 		/// </summary>
-		/// <returns></returns>
+		/// <returns>przekonwertowana argument</returns>
 		public T[] ToArray(){ 
-			T[] result = new T[Count()];
-			Element current = first;
-			for(int i =0; i< result.Length; i++){ 
-				result[i] = first.value;
-				current = first.next;
+			T[] result = new T[length];
+			int p = 0;
+			for(Element i = first; i != null; i= i.next){ 
+				result[p] = i.value;
+				p++;
 			}
 			return result;
 		}
 			
-		/// <summary>
-		/// zwraca liczbę elementów w kolejce
-		/// </summary>
-		/// <returns></returns>
-		public int Count(){ 
-			return Count(first);
-		}
 		
 		private int Count(Element start){ 
 			if(start == null)
@@ -388,17 +412,72 @@ public static class M {
 			}
 		}
 
-		public override string ToString() {
-			string result = "que of "+typeof(T).ToString()+" : ";
-			Element current = first;
+		public override string ToString() {			
 			if(!notEmpty)
 				return "empty que of "+typeof(T).ToString();
+
+			string result = "que of "+typeof(T).ToString()+" : ";
+			Element current = first;
 			while(current != null){ 
 				result += current.value.ToString()+" ";
 				current = current.next;
 			}
 			return result;
 		}
+
+		/// <summary>
+		/// usuwa wszystkie elementy spełniające warunek
+		/// </summary>
+		/// <param name="rule">warunek</param>
+		public void RemoveWithRule(System.Func<T, bool> rule){ 
+			while(notEmpty && rule(first.value)){ 
+				PopForward();
+			}	
+			while(notEmpty && rule(last.value)){ 
+				PopBack();
+			}
+
+			for(Element el = first.next; el != last; el = el.next){ 
+				if(rule(el.value)){ 
+					el.previous.next = el.next;
+					el.next.previous = el.previous;
+				}	
+				
+			}
+
+			length = Count(first);
+			
+		}
+	}
+
+	/// <summary>
+	/// konwertuje listę w kolejkę
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <param name="arg"></param>
+	/// <returns></returns>
+	public static M.Queue<T> ToMQue<T>(this List<T> arg){
+			
+		M.Queue<T> result = new M.Queue<T>();
+		foreach(T element in arg){ 
+			result.PushForward(element);
+		}
+		return result;
+	}
+
+	/// <summary>
+	/// konwertuje tablicę w kolejkę
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <param name="arg"></param>
+	/// <returns></returns>
+	public static M.Queue<T> ToMQue<T>(this T[] arg){
+			
+		M.Queue<T> result = new M.Queue<T>();
+		foreach(T element in arg){ 
+			result.PushForward(element);
+		}
+		return result;
 	}
 
 	public static List<Transform> FindAllChildren(Transform parent){ 
